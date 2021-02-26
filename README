@@ -1,0 +1,11 @@
+# Schneider Electric MDrive device server
+
+This a Tango device server written in PyTango for a Schneider Electric MDrive stepper motor controller using the RS485 serial interface.
+It consits of a SchneiderMDriveCtrl device server that handles the communication with the RS485 bus and one to many SchneiderMDriveCtrlAxis device servers implementing the actual interface to the stepper axis.
+
+## Authors
+
+* Daniel Schick
+
+
+
