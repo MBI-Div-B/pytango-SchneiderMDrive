@@ -71,13 +71,12 @@ class SchneiderMDriveCtrl(Device):
 
     @command(dtype_in=str, dtype_out=bool)
     def write(self, cmd):
-        cmd = cmd + '\n'
         self.debug_stream("write command: {:s}".format(cmd))
+        cmd = cmd + '\n'
         self.serial.write(cmd.encode("utf-8"))
         self.serial.flush()
         time.sleep(0.02)  # 20ms wait time
-        res = self.serial.readline().decode("utf-8")
-        self.debug_stream("read response: {:s}".format(res))
+        res = self.serial.readline().decode("utf-8")    
         if self.__ACK in res:
             return True
         else:
@@ -86,7 +85,9 @@ class SchneiderMDriveCtrl(Device):
  
     @command(dtype_out=str)
     def read(self):
-        return self.serial.readline().decode("utf-8").rstrip(self.__ACK)
+        res = self.serial.readline().decode("utf-8").rstrip(self.__ACK)
+        self.debug_stream("read response: {:s}".format(res))
+        return res
 
     @command(dtype_in=str, dtype_out=str)
     def write_read(self, cmd):
