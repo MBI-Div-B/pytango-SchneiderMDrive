@@ -68,6 +68,23 @@ class SchneiderMDriveAxis(Device):
         display_level=DispLevel.EXPERT,
     )
 
+    micro_steps = attribute(
+        dtype="int",
+        label="micro steps",
+        access=AttrWriteType.READ_WRITE,
+        display_level=DispLevel.EXPERT,
+        doc="""Step resolution 1 to 256
+1 = Full step
+2 = Half step
+4 = 1/4 step
+8 = 1/8 step
+16 = 1/16 step
+32 = 1/32 step
+64 = 1/64 step
+128 = 1/128 step
+256 = 1/256 step"""
+    )
+    
     hw_limit_minus = attribute(
         dtype="bool",
         label="HW limit -",
@@ -157,6 +174,14 @@ class SchneiderMDriveAxis(Device):
 
     def write_hold_current(self, value):
         self.write("HC={:d}".format(value))
+
+    def read_micro_steps(self):
+        return int(self.write_read("PR MS"))
+
+    def write_micro_steps(self, value):
+        if value not in [1, 2, 4, 8, 16, 32, 64, 128, 256]:
+            return "input not in [1, 2, 4, 8, 16, 32, 64, 128, 256]"
+        self.write("MS={:d}".format(value))
 
     def read_hw_limit_minus(self):
         return self.__HW_Limit_Minus
