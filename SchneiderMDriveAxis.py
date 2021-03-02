@@ -5,6 +5,13 @@ from tango import Database, DevFailed, AttrWriteType, DevState, DeviceProxy, Dis
 from tango.server import device_property
 from tango.server import Device, attribute, command
 import sys
+from enum import IntEnum
+
+class MovementUnit(IntEnum):
+    step = 0
+    mm = 1
+    inch = 2
+    degree = 3
 
 
 class SchneiderMDriveAxis(Device):
@@ -84,7 +91,15 @@ class SchneiderMDriveAxis(Device):
 128 = 1/128 step
 256 = 1/256 step"""
     )
-    
+
+    movement_unit = attribute(
+        dtype=MovementUnit,
+        label="unit",
+        access=AttrWriteType.READ_WRITE,
+        display_level=DispLevel.EXPERT,
+        doc="Allowed unit values are step, mm, inch, degree"
+    )
+
     hw_limit_minus = attribute(
         dtype="bool",
         label="HW limit -",
@@ -183,11 +198,30 @@ class SchneiderMDriveAxis(Device):
             return "input not in [1, 2, 4, 8, 16, 32, 64, 128, 256]"
         self.write("MS={:d}".format(value))
 
+    def read_movement_unit(self):
+        return self.__Unit
+
+    def write_movement_unit(self, value):
+        self.__Unit = value
+        self.set_display_unit()
+
     def read_hw_limit_minus(self):
         return self.__HW_Limit_Minus
 
     def read_hw_limit_plus(self):
         return self.__HW_Limit_Plus
+
+    # internal methods
+    def set_display_unit(self):
+        attributes = [b"position"]
+        for attr in attributes:
+            ac3 = self.get_attribute_config_3(attr)
+            ac3[0].unit = self.__Unit.name.encode("utf-8")
+            # if (1/self.__Steps_Per_Unit % 1) == 0.0:
+            #     ac3[0].format = b"%8d"
+            # else:
+            #     ac3[0].format = b"%8.3f"
+            self.set_attribute_config_3(ac3)
 
     # commands
     @command(dtype_in=str, doc_in="enter a command")
