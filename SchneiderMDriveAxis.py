@@ -202,7 +202,14 @@ class SchneiderMDriveAxis(Device):
         return self.__Unit
 
     def write_movement_unit(self, value):
-        self.__Unit = value
+        if value == 1:
+            self.__Unit = MovementUnit.step
+        elif value == 2:
+            self.__Unit = MovementUnit.mm
+        elif value == 3:
+            self.__Unit = MovementUnit.inch
+        elif value == 4:
+            self.__Unit = MovementUnit.degree
         self.set_display_unit()
 
     def read_hw_limit_minus(self):
