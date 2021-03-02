@@ -46,6 +46,28 @@ class SchneiderMDriveAxis(Device):
         display_level=DispLevel.EXPERT,
     )
 
+    hold_current = attribute(
+        dtype=int,
+        label="hold current",
+        unit="%",
+        min_value=0,
+        max_value=100,
+        format="%3d",
+        access=AttrWriteType.READ_WRITE,
+        display_level=DispLevel.EXPERT,
+    )
+
+    run_current = attribute(
+        dtype=int,
+        label="run current",
+        unit="%",
+        min_value=0,
+        max_value=100,
+        format="%3d",
+        access=AttrWriteType.READ_WRITE,
+        display_level=DispLevel.EXPERT,
+    )
+
     hw_limit_minus = attribute(
         dtype="bool",
         label="HW limit -",
@@ -123,6 +145,18 @@ class SchneiderMDriveAxis(Device):
         self.write("A={:d}".format(value))
         # set deceleration to same value
         self.write("D={:d}".format(value))
+
+    def read_run_current(self):
+        return int(self.write_read("PR RC"))
+
+    def write_run_current(self, value):
+        self.write("RC={:d}".format(value))
+
+    def read_hold_current(self):
+        return int(self.write_read("PR HC"))
+
+    def write_hold_current(self, value):
+        self.write("HC={:d}".format(value))
 
     def read_hw_limit_minus(self):
         return self.__HW_Limit_Minus
