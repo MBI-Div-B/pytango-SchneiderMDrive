@@ -31,7 +31,7 @@ class SchneiderMDriveAxis(Device):
     velocity = attribute(
         dtype=int,
         format="%8d",
-        label="position",
+        label="velocity",
         unit="steps/s",
         access=AttrWriteType.READ_WRITE,
         display_level=DispLevel.EXPERT,
@@ -40,8 +40,8 @@ class SchneiderMDriveAxis(Device):
     acceleration = attribute(
         dtype=int,
         format="%8d",
-        label="position",
-        unit="steps/s²",
+        label="acceleration",
+        unit="steps/s^2",
         access=AttrWriteType.READ_WRITE,
         display_level=DispLevel.EXPERT,
     )
@@ -111,10 +111,10 @@ class SchneiderMDriveAxis(Device):
         self.write("MA {:d}".format(value))
 
     def read_velocity(self):
-        return int(self.write_read("PR V"))
+        return int(self.write_read("PR VM"))
 
     def write_velocity(self, value):
-        self.write("V={:d}".format(value))
+        self.write("VM={:d}".format(value))
 
     def read_acceleration(self):
         return int(self.write_read("PR A"))
