@@ -28,6 +28,24 @@ class SchneiderMDriveAxis(Device):
         display_level=DispLevel.OPERATOR,
     )
 
+    velocity = attribute(
+        dtype=int,
+        format="%8d",
+        label="position",
+        unit="steps/s",
+        access=AttrWriteType.READ_WRITE,
+        display_level=DispLevel.EXPERT,
+    )
+
+    acceleration = attribute(
+        dtype=int,
+        format="%8d",
+        label="position",
+        unit="steps/s²",
+        access=AttrWriteType.READ_WRITE,
+        display_level=DispLevel.EXPERT,
+    )
+
     hw_limit_minus = attribute(
         dtype="bool",
         label="HW limit -",
@@ -64,7 +82,6 @@ class SchneiderMDriveAxis(Device):
 
         self.info_stream("axis part number: {:s}".format(self.write_read('PR PN')))
         self.info_stream("axis serial number: {:s}".format(self.write_read('PR SN')))
-        
 
     def delete_device(self):
         self.set_state(DevState.OFF)
@@ -74,9 +91,9 @@ class SchneiderMDriveAxis(Device):
         self.__HW_Limit_Plus = bool(int(self.write_read('PR I2')))
         self.debug_stream("HW limit-: {0}".format(self.__HW_Limit_Minus))
         self.debug_stream("HW limit+: {0}".format(self.__HW_Limit_Plus))
-        
+
         is_moving = bool(int(self.write_read('PR MV')))
-        
+
         if is_moving:
             self.set_status("Device is MOVING")
             self.debug_stream("device is: MOVING")
@@ -93,6 +110,20 @@ class SchneiderMDriveAxis(Device):
     def write_position(self, value):
         self.write("MA {:d}".format(value))
 
+    def read_velocity(self):
+        return int(self.write_read("PR V"))
+
+    def write_velocity(self, value):
+        self.write("V={:d}".format(value))
+
+    def read_acceleration(self):
+        return int(self.write_read("PR A"))
+
+    def write_acceleration(self, value):
+        self.write("A={:d}".format(value))
+        # set deceleration to same value
+        self.write("D={:d}".format(value))
+
     def read_hw_limit_minus(self):
         return self.__HW_Limit_Minus
 
@@ -100,7 +131,7 @@ class SchneiderMDriveAxis(Device):
         return self.__HW_Limit_Plus
 
     # commands
-    @command(dtype_in=str, doc_in="enter a command")  
+    @command(dtype_in=str, doc_in="enter a command")
     def write(self, cmd):
         cmd = str(self.Axis) + cmd
         res = self.ctrl.write(cmd)
@@ -109,7 +140,7 @@ class SchneiderMDriveAxis(Device):
             self.warn_stream("command not acknowledged from controller "
                              "-> Fault State")
 
-    @command(dtype_in=str, dtype_out=str, doc_in="enter a command", doc_out="response")  
+    @command(dtype_in=str, dtype_out=str, doc_in="enter a command", doc_out="response")
     def write_read(self, cmd):
         cmd = str(self.Axis) + cmd
         res = self.ctrl.write_read(cmd)
@@ -178,4 +209,3 @@ class SchneiderMDriveAxis(Device):
 
 if __name__ == "__main__":
     SchneiderMDriveAxis.run_server()
-
