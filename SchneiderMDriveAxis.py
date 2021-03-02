@@ -152,12 +152,10 @@ class SchneiderMDriveAxis(Device):
         else:
             return res
 
-#     @command(dtype_in=float, doc_in="position")
-#     def set_position(self, value):
-#         if self.__Inverted:
-#             value = -1*value
-#         self.send_cmd("P20S{:.4f}".format(value))
-# 
+    @command(dtype_in=int, doc_in="position")
+    def set_position(self, value):
+        self.write("P={:d}".format(value))
+
 #     @command
 #     def jog_plus(self):
 #         if self.__Inverted:
@@ -201,10 +199,10 @@ class SchneiderMDriveAxis(Device):
 #         self.set_state(DevState.ON)
 # 
     @command(dtype_out=str)
-    def write_to_eeprom(self):
+    def save_to_eeprom(self):
         self.send_cmd("S")
-        self.info_stream("parameters written to EEPROM")
-        return "parameters written to EEPROM"
+        self.info_stream("parameters saved to EEPROM")
+        return "parameters saved to EEPROM"
 
 
 if __name__ == "__main__":
