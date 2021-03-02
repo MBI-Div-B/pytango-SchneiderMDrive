@@ -200,7 +200,7 @@ class SchneiderMDriveAxis(Device):
 # 
     @command(dtype_out=str)
     def save_to_eeprom(self):
-        self.send_cmd("S")
+        self.write("S")
         self.info_stream("parameters saved to EEPROM")
         return "parameters saved to EEPROM"
 
