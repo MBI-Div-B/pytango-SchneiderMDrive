@@ -43,9 +43,10 @@ class SchneiderMDriveCtrl(Device):
         self.get_device_properties(self.get_device_class())
         # open serial
         try:
-            self.serial = serial.Serial(self.Port, self.Baudrate, timeout=3)            
+            self.serial = serial.Serial(self.Port, self.Baudrate, timeout=3)
             self.set_state(DevState.ON)
-            self.info_stream("connected to port {:s} with baudrate {:d}".format(self.Port, self.Baudrate))
+            self.info_stream("connected to port {:s} with baudrate {:d}".format(
+                self.Port, self.Baudrate))
         except Exception:
             self.error_stream("failed to open {:s}".format(self.Port))
             sys.exit(255)
@@ -76,13 +77,13 @@ class SchneiderMDriveCtrl(Device):
         self.serial.write(cmd.encode("utf-8"))
         self.serial.flush()
         time.sleep(0.02)  # 20ms wait time
-        res = self.serial.readline().decode("utf-8")    
+        res = self.serial.readline().decode("utf-8")
         if self.__ACK in res:
             return True
         else:
             # no acknowledgment in response
             return False
- 
+
     @command(dtype_out=str)
     def read(self):
         res = self.serial.readline().decode("utf-8").rstrip(self.__ACK)
@@ -96,6 +97,6 @@ class SchneiderMDriveCtrl(Device):
         else:
             return 'error'
 
+
 if __name__ == "__main__":
     SchneiderMDriveCtrl.run_server()
-
