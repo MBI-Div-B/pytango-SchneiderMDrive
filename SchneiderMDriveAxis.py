@@ -20,7 +20,7 @@ class SchneiderMDriveAxis(Device):
     )
 
     position = attribute(
-        dtype=int,
+        dtype=float,
         format="%8d",
         label="position",
         unit="steps",
@@ -29,7 +29,7 @@ class SchneiderMDriveAxis(Device):
     )
 
     velocity = attribute(
-        dtype=int,
+        dtype=float,
         format="%8d",
         label="velocity",
         unit="steps/s",
@@ -38,12 +38,22 @@ class SchneiderMDriveAxis(Device):
     )
 
     acceleration = attribute(
-        dtype=int,
+        dtype=float,
         format="%8d",
         label="acceleration",
         unit="steps/s^2",
         access=AttrWriteType.READ_WRITE,
         display_level=DispLevel.EXPERT,
+    )
+
+    conversion = attribute(
+        dtype=float,
+        format="%8.3d",
+        label="conversion",
+        access=AttrWriteType.READ_WRITE,
+        display_level=DispLevel.EXPERT,
+        memorized=True,
+        hw_memorized=True
     )
 
     hold_current = attribute(
@@ -121,6 +131,8 @@ class SchneiderMDriveAxis(Device):
 
         self.info_stream("axis part number: {:s}".format(self.write_read('PR PN')))
         self.info_stream("axis serial number: {:s}".format(self.write_read('PR SN')))
+
+        self.__conversion = 1
         
     def delete_device(self):
         self.set_state(DevState.OFF)
@@ -144,24 +156,31 @@ class SchneiderMDriveAxis(Device):
 
     # attribute read/write methods
     def read_position(self):
-        return int(self.write_read("PR P"))
+        return float(self.write_read("PR P"))/self.__conversion
 
     def write_position(self, value):
-        self.write("MA {:d}".format(value))
+        self.write("MA {:d}".format(int(value*self.__conversion)))
 
     def read_velocity(self):
-        return int(self.write_read("PR VM"))
+        return float(self.write_read("PR VM"))/self.__conversion
 
     def write_velocity(self, value):
-        self.write("VM={:d}".format(value))
+        self.write("VM={:d}".format(int(value*self.__conversion)))
 
     def read_acceleration(self):
-        return int(self.write_read("PR A"))
+        return float(self.write_read("PR A"))/self.__conversion
 
     def write_acceleration(self, value):
-        self.write("A={:d}".format(value))
+        self.write("A={:d}".format(int(value*self.__conversion)))
         # set deceleration to same value
-        self.write("D={:d}".format(value))
+        self.write("D={:d}".format(int(value*self.__conversion)))
+        
+    def read_conversion(self):
+        return self.__conversion
+
+    def write_conversion(self, value):
+        self.info_stream("Set conversion to {:f}".format(float(value)))
+        self.__conversion = float(value)
 
     def read_run_current(self):
         return int(self.write_read("PR RC"))
@@ -237,7 +256,9 @@ class SchneiderMDriveAxis(Device):
             else:
                 ac3[0].format = b"%8.3f"
             self.set_attribute_config_3(ac3)
-        return "movement unit set to {:s}".format(value)
+        response = "set movement unit to {:s}".format(value)
+        self.info_stream(response)
+        return response
 
 #     @command
 #     def jog_plus(self):
