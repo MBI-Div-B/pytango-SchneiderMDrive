@@ -219,26 +219,25 @@ class SchneiderMDriveAxis(Device):
 
     @command(dtype_in=str, doc_in="movement unit", dtype_out=str, doc_out="result")
     def set_movement_unit(self, value):
-        if value == 0:
-            self.__movement_unit = MovementUnit.step
-        elif value == 1:
-            self.__movement_unit = MovementUnit.mm
-        elif value == 2:
-            self.__movement_unit = MovementUnit.inch
-        elif value == 3:
-            self.__movement_unit = MovementUnit.degree
-        self.set_display_unit()
+        if value not in ["steps", "mm", "inch", "degree"]:
+            return "input must be steps/mm/inch/degree"
         
-        attributes = [b"position"]
+        attributes = [b"position", b"velocity", b"acceleration"]
         for attr in attributes:
-            #ac3 = self.get_attribute_config_3(attr)
-            #ac3[0].unit = self.__movement_unit.name.encode("utf-8")
-            # if (1/self.__Steps_Per_Unit % 1) == 0.0:
-            #     ac3[0].format = b"%8d"
-            # else:
-            #     ac3[0].format = b"%8.3f"
-            #self.set_attribute_config_3(ac3)
-            pass
+            ac3 = self.get_attribute_config_3(attr)
+            if attr == b"position":
+                ac3[0].unit = "{:s}".format(value).encode("utf-8")
+            elif attr == b"velocity":
+                ac3[0].unit = "{:s}/s".format(value).encode("utf-8")
+            elif attr == b"acceleration":
+                ac3[0].unit = "{:s}/s^2".format(value).encode("utf-8")
+
+            if value == "steps":
+                ac3[0].format = b"%8d"
+            else:
+                ac3[0].format = b"%8.3f"
+            self.set_attribute_config_3(ac3)
+        return "movement unit set to {:s}".format(value)
 
 #     @command
 #     def jog_plus(self):
