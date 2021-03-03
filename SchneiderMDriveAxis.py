@@ -5,13 +5,6 @@ from tango import Database, DevFailed, AttrWriteType, DevState, DeviceProxy, Dis
 from tango.server import device_property
 from tango.server import Device, attribute, command
 import sys
-from enum import IntEnum
-
-class MovementUnit(IntEnum):
-    step = 0
-    mm = 1
-    inch = 2
-    degree = 3
 
 
 class SchneiderMDriveAxis(Device):
@@ -92,14 +85,6 @@ class SchneiderMDriveAxis(Device):
 256 = 1/256 step"""
     )
 
-    movement_unit = attribute(
-        dtype=MovementUnit,
-        label="unit",
-        access=AttrWriteType.READ_WRITE,
-        display_level=DispLevel.EXPERT,
-        doc="Allowed unit values are step, mm, inch, degree"
-    )
-
     hw_limit_minus = attribute(
         dtype="bool",
         label="HW limit -",
@@ -136,7 +121,7 @@ class SchneiderMDriveAxis(Device):
 
         self.info_stream("axis part number: {:s}".format(self.write_read('PR PN')))
         self.info_stream("axis serial number: {:s}".format(self.write_read('PR SN')))
-
+        
     def delete_device(self):
         self.set_state(DevState.OFF)
 
@@ -198,20 +183,6 @@ class SchneiderMDriveAxis(Device):
             return "input not in [1, 2, 4, 8, 16, 32, 64, 128, 256]"
         self.write("MS={:d}".format(value))
 
-    def read_movement_unit(self):
-        return self.__Unit
-
-    def write_movement_unit(self, value):
-        if value == 1:
-            self.__Unit = MovementUnit.step
-        elif value == 2:
-            self.__Unit = MovementUnit.mm
-        elif value == 3:
-            self.__Unit = MovementUnit.inch
-        elif value == 4:
-            self.__Unit = MovementUnit.degree
-        self.set_display_unit()
-
     def read_hw_limit_minus(self):
         return self.__HW_Limit_Minus
 
@@ -219,16 +190,6 @@ class SchneiderMDriveAxis(Device):
         return self.__HW_Limit_Plus
 
     # internal methods
-    def set_display_unit(self):
-        attributes = [b"position"]
-        for attr in attributes:
-            ac3 = self.get_attribute_config_3(attr)
-            ac3[0].unit = self.__Unit.name.encode("utf-8")
-            # if (1/self.__Steps_Per_Unit % 1) == 0.0:
-            #     ac3[0].format = b"%8d"
-            # else:
-            #     ac3[0].format = b"%8.3f"
-            self.set_attribute_config_3(ac3)
 
     # commands
     @command(dtype_in=str, doc_in="enter a command")
@@ -255,6 +216,29 @@ class SchneiderMDriveAxis(Device):
     @command(dtype_in=int, doc_in="position")
     def set_position(self, value):
         self.write("P={:d}".format(value))
+
+    @command(dtype_in=str, doc_in="movement unit", dtype_out=str, doc_out="result")
+    def set_movement_unit(self, value):
+        if value == 0:
+            self.__movement_unit = MovementUnit.step
+        elif value == 1:
+            self.__movement_unit = MovementUnit.mm
+        elif value == 2:
+            self.__movement_unit = MovementUnit.inch
+        elif value == 3:
+            self.__movement_unit = MovementUnit.degree
+        self.set_display_unit()
+        
+        attributes = [b"position"]
+        for attr in attributes:
+            #ac3 = self.get_attribute_config_3(attr)
+            #ac3[0].unit = self.__movement_unit.name.encode("utf-8")
+            # if (1/self.__Steps_Per_Unit % 1) == 0.0:
+            #     ac3[0].format = b"%8d"
+            # else:
+            #     ac3[0].format = b"%8.3f"
+            #self.set_attribute_config_3(ac3)
+            pass
 
 #     @command
 #     def jog_plus(self):
