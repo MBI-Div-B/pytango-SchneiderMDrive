@@ -20,6 +20,10 @@ You should also set the ``EM`` (Echo Mode) to 1:
 
 > Don’t echo the information, only send back prompt. CR/LF indicates command accepted (half duplex).
 
+You should also set the ``ES`` (Escape Mode) to 3:
+
+> Escape Flag set to respond to addressable ESC keypress (party mode)
+
 ## Authors
 
 * Daniel Schick

@@ -291,17 +291,18 @@ class SchneiderMDriveAxis(Device):
 #         else:
 #             self.send_cmd("0-")
 #         self.set_state(DevState.MOVING)
-# 
-#     @command
-#     def stop(self):
-#         self.send_cmd("S")
-#         self.set_state(DevState.ON)
-# 
-#     @command
-#     def abort(self):
-#         self.send_cmd("SN")
-#         self.set_state(DevState.ON)
-# 
+
+    @command
+    def stop(self):
+        self.write("SL 0")
+        self.set_state(DevState.ON)
+
+    @command
+    def abort(self):
+        # send esc
+        self.write("\x1b")
+        self.set_state(DevState.ON)
+
     @command(dtype_out=str)
     def save_to_eeprom(self):
         self.write("S")
