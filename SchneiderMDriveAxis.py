@@ -260,22 +260,16 @@ class SchneiderMDriveAxis(Device):
         self.info_stream(response)
         return response
 
-#     @command
-#     def jog_plus(self):
-#         if self.__Inverted:
-#             self.send_cmd("L-")
-#         else:
-#             self.send_cmd("L+")
-#         self.set_state(DevState.MOVING)
-# 
-#     @command
-#     def jog_minus(self):
-#         if self.__Inverted:
-#             self.send_cmd("L+")
-#         else:
-#             self.send_cmd("L-")
-#         self.set_state(DevState.MOVING)
-# 
+    @command
+    def jog_plus(self):
+        self.write("SL VM")
+        self.set_state(DevState.MOVING)
+
+    @command
+    def jog_minus(self):        
+        self.write("SL -VM")
+        self.set_state(DevState.MOVING)
+
 #     @command
 #     def homing_plus(self):
 #         if self.__Inverted:
