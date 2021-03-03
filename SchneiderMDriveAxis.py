@@ -270,21 +270,21 @@ class SchneiderMDriveAxis(Device):
         self.write("SL -VM")
         self.set_state(DevState.MOVING)
 
-#     @command
-#     def homing_plus(self):
-#         if self.__Inverted:
-#             self.send_cmd("0-")
-#         else:
-#             self.send_cmd("0+")
-#         self.set_state(DevState.MOVING)
-# 
-#     @command
-#     def homing_minus(self):
-#         if self.__Inverted:
-#             self.send_cmd("0+")
-#         else:
-#             self.send_cmd("0-")
-#         self.set_state(DevState.MOVING)
+    @command
+    def homing_plus(self):
+        # need to add pre and post homing hook to change change
+        # limit switch to end switch with I1, I2, I3, I4
+        # maybe one could wire it accordingly?
+        self.write("HM 3")
+        self.set_state(DevState.MOVING)
+
+    @command
+    def homing_minus(self):
+        # need to add pre and post homing hook to change change
+        # limit switch to end switch with I1, I2, I3, I4
+        # maybe one could wire it accordingly?
+        self.write("HM 1")
+        self.set_state(DevState.MOVING)
 
     @command
     def stop(self):
