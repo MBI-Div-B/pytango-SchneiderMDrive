@@ -24,6 +24,14 @@ You should also set the ``ES`` (Escape Mode) to 3:
 
 > Escape Flag set to respond to addressable ESC keypress (party mode)
 
+## I/O setting - Homing and Limits
+
+Refer to the settings of the general input/output for limit and homing switches: ``S1-S4``.
+The Tango driver automatically detects which inputs are used for positive and negative limit switches and homing switch,
+but only at startup.
+If you change these settings (do not forget to save them to EEPROM) and restart the Device Server.
+If no homing switch is set, the limit switches will be reconfigured as homing switch during runtime.
+
 ## Authors
 
 * Daniel Schick
