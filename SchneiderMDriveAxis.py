@@ -129,8 +129,26 @@ class SchneiderMDriveAxis(Device):
         else:
             self.info_stream("controller was already open")
 
-        self.info_stream("axis part number: {:s}".format(self.write_read('PR PN')))
-        self.info_stream("axis serial number: {:s}".format(self.write_read('PR SN')))
+        self.info_stream("axis part number: {:s}".format(self.write_read("PR PN")))
+        self.info_stream("axis serial number: {:s}".format(self.write_read("PR SN")))
+        
+        # read limit switches
+        self.__input_limit_minus = 0
+        self.__input_limit_plus = 0
+        self.__input_homing_switch = 0
+        for i in range(1, 5):
+            input_setting = self.write_read("PR S{:d}".format(i))
+            input_type, input_level, sink_source = input_setting.split(',')
+            if input_type == "1":
+                self.__input_homing_switch = i
+            elif input_type == "2":
+                self.__input_limit_plus = i
+            elif input_type == "3":
+                self.__input_limit_minus = i
+                
+        self.info_stream("input limit minus: {:d}".format(self.__input_limit_minus))
+        self.info_stream("input limit plus: {:d}".format(self.__input_limit_plus))
+        self.info_stream("input homing switch plus: {:d}".format(self.__input_homing_switch))
 
         self.__conversion = 1
 
@@ -138,10 +156,12 @@ class SchneiderMDriveAxis(Device):
         self.set_state(DevState.OFF)
 
     def dev_state(self):
-        self.__HW_Limit_Minus = bool(int(self.write_read('PR I1')))
-        self.__HW_Limit_Plus = bool(int(self.write_read('PR I2')))
-        self.debug_stream("HW limit-: {0}".format(self.__HW_Limit_Minus))
-        self.debug_stream("HW limit+: {0}".format(self.__HW_Limit_Plus))
+        if self.__input_limit_minus > 0:
+            self.__HW_Limit_Minus = bool(int(self.write_read("PR I{:d}".format(self.__input_limit_minus))))
+            self.debug_stream("HW limit-: {0}".format(self.__HW_Limit_Minus))
+        if self.__input_limit_plus > 0:
+            self.__HW_Limit_Plus = bool(int(self.write_read("PR I{:d}".format(self.__input_limit_plus))))
+            self.debug_stream("HW limit+: {0}".format(self.__HW_Limit_Plus))
 
         is_moving = bool(int(self.write_read('PR MV')))
 
@@ -160,6 +180,7 @@ class SchneiderMDriveAxis(Device):
 
     def write_position(self, value):
         self.write("MA {:d}".format(int(value*self.__conversion)))
+        self.set_state(DevState.MOVING)
 
     def read_velocity(self):
         return float(self.write_read("PR VM"))/abs(self.__conversion)
@@ -262,12 +283,12 @@ class SchneiderMDriveAxis(Device):
 
     @command
     def jog_plus(self):
-        self.write("SL VM")
+        self.write("SL {:d}".format(int(self.read_velocity()*self.__conversion)))
         self.set_state(DevState.MOVING)
 
     @command
-    def jog_minus(self):        
-        self.write("SL -VM")
+    def jog_minus(self):
+        self.write("SL {:d}".format(int(-1*self.read_velocity()*self.__conversion)))
         self.set_state(DevState.MOVING)
 
     @command
