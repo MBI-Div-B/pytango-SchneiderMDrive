@@ -133,7 +133,7 @@ class SchneiderMDriveAxis(Device):
         self.info_stream("axis serial number: {:s}".format(self.write_read('PR SN')))
 
         self.__conversion = 1
-        
+
     def delete_device(self):
         self.set_state(DevState.OFF)
 
@@ -162,18 +162,18 @@ class SchneiderMDriveAxis(Device):
         self.write("MA {:d}".format(int(value*self.__conversion)))
 
     def read_velocity(self):
-        return float(self.write_read("PR VM"))/self.__conversion
+        return float(self.write_read("PR VM"))/abs(self.__conversion)
 
     def write_velocity(self, value):
-        self.write("VM={:d}".format(int(value*self.__conversion)))
+        self.write("VM={:d}".format(int(value*abs(self.__conversion))))
 
     def read_acceleration(self):
-        return float(self.write_read("PR A"))/self.__conversion
+        return float(self.write_read("PR A"))/abs(self.__conversion)
 
     def write_acceleration(self, value):
-        self.write("A={:d}".format(int(value*self.__conversion)))
+        self.write("A={:d}".format(int(value*abs(self.__conversion))))
         # set deceleration to same value
-        self.write("D={:d}".format(int(value*self.__conversion)))
+        self.write("D={:d}".format(int(value*abs(self.__conversion))))
 
     def read_conversion(self):
         return self.__conversion
