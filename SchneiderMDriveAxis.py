@@ -137,13 +137,13 @@ class SchneiderMDriveAxis(Device):
         self.__input_limit_plus = 0
         self.__input_homing_switch = 0
         for i in range(1, 5):
-            input_setting = self.write_read("PR S{:d}".format(i))
-            input_type, input_level, sink_source = input_setting.split(',')
-            if input_type == "1":
+            input_type, input_level, sink_source = self.read_io_setting(i)
+            
+            if input_type == 1:
                 self.__input_homing_switch = i
-            elif input_type == "2":
+            elif input_type == 2:
                 self.__input_limit_plus = i
-            elif input_type == "3":
+            elif input_type == 3:
                 self.__input_limit_minus = i
                 
         self.info_stream("input limit minus: {:d}".format(self.__input_limit_minus))
@@ -151,17 +151,32 @@ class SchneiderMDriveAxis(Device):
         self.info_stream("input homing switch plus: {:d}".format(self.__input_homing_switch))
 
         self.__conversion = 1
+        self.__HW_Limit_Plus = False
+        self.__HW_Limit_Minus = False
 
     def delete_device(self):
         self.set_state(DevState.OFF)
 
     def dev_state(self):
         if self.__input_limit_minus > 0:
-            self.__HW_Limit_Minus = bool(int(self.write_read("PR I{:d}".format(self.__input_limit_minus))))
-            self.debug_stream("HW limit-: {0}".format(self.__HW_Limit_Minus))
+            # negative limit switch is present
+            state = bool(int(self.write_read("PR I{:d}".format(self.__input_limit_minus))))
+            if self.__conversion < 0:
+                self.__HW_Limit_Plus = state
+                self.debug_stream("HW limit+: {0}".format(self.__HW_Limit_Plus))
+            else:
+                self.__HW_Limit_Minus = state
+                self.debug_stream("HW limit-: {0}".format(self.__HW_Limit_Minus))
+
         if self.__input_limit_plus > 0:
-            self.__HW_Limit_Plus = bool(int(self.write_read("PR I{:d}".format(self.__input_limit_plus))))
-            self.debug_stream("HW limit+: {0}".format(self.__HW_Limit_Plus))
+            # positive limit switch is present
+            state = bool(int(self.write_read("PR I{:d}".format(self.__input_limit_plus))))
+            if self.__conversion < 0:
+                self.__HW_Limit_Minus = state
+                self.debug_stream("HW limit-: {0}".format(self.__HW_Limit_Minus))
+            else:
+                self.__HW_Limit_Plus = state
+                self.debug_stream("HW limit+: {0}".format(self.__HW_Limit_Plus))                
 
         is_moving = bool(int(self.write_read('PR MV')))
 
@@ -230,6 +245,9 @@ class SchneiderMDriveAxis(Device):
         return self.__HW_Limit_Plus
 
     # internal methods
+    def read_io_setting(self, number):
+        input_type, input_level, sink_source = self.write_read("PR S{:d}".format(number)).split(',')
+        return int(input_type), int(input_level), int(sink_source)
 
     # commands
     @command(dtype_in=str, doc_in="enter a command")
@@ -293,19 +311,29 @@ class SchneiderMDriveAxis(Device):
 
     @command
     def homing_plus(self):
-        # need to add pre and post homing hook to change change
-        # limit switch to end switch with I1, I2, I3, I4
-        # maybe one could wire it accordingly?
-        self.write("HM 3")
-        self.set_state(DevState.MOVING)
+        if self.__conversion < 0:
+            # positive on negative
+            if self.__input_homing_switch > 0:
+                self.write("HM 1")
+                self.set_state(DevState.MOVING)
+        else:
+            # negative on positive
+            if self.__input_homing_switch > 0:
+                self.write("HM 3")
+                self.set_state(DevState.MOVING)
 
     @command
     def homing_minus(self):
-        # need to add pre and post homing hook to change change
-        # limit switch to end switch with I1, I2, I3, I4
-        # maybe one could wire it accordingly?
-        self.write("HM 1")
-        self.set_state(DevState.MOVING)
+        if self.__conversion < 0:
+            # positive on hardware
+            if self.__input_homing_switch > 0:
+                self.write("HM 3")
+                self.set_state(DevState.MOVING)
+        else:
+            # negative on hardware
+            if self.__input_homing_switch > 0:
+                self.write("HM 1")
+                self.set_state(DevState.MOVING)
 
     @command
     def stop(self):
