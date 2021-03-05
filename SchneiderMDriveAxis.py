@@ -48,7 +48,7 @@ class SchneiderMDriveAxis(Device):
 
     conversion = attribute(
         dtype=float,
-        format="%8.3d",
+        format="%8.3f",
         label="conversion",
         access=AttrWriteType.READ_WRITE,
         display_level=DispLevel.EXPERT,
@@ -174,7 +174,7 @@ class SchneiderMDriveAxis(Device):
         self.write("A={:d}".format(int(value*self.__conversion)))
         # set deceleration to same value
         self.write("D={:d}".format(int(value*self.__conversion)))
-        
+
     def read_conversion(self):
         return self.__conversion
 
@@ -234,13 +234,13 @@ class SchneiderMDriveAxis(Device):
 
     @command(dtype_in=int, doc_in="position")
     def set_position(self, value):
-        self.write("P={:d}".format(value))
+        self.write("P={:d}".format(int(value*self.__conversion)))
 
     @command(dtype_in=str, doc_in="movement unit", dtype_out=str, doc_out="result")
     def set_movement_unit(self, value):
         if value not in ["steps", "mm", "inch", "degree"]:
             return "input must be steps/mm/inch/degree"
-        
+
         attributes = [b"position", b"velocity", b"acceleration"]
         for attr in attributes:
             ac3 = self.get_attribute_config_3(attr)
