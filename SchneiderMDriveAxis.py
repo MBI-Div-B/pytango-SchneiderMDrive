@@ -271,7 +271,7 @@ class SchneiderMDriveAxis(Device):
         else:
             return res
 
-    @command(dtype_in=int, doc_in="position")
+    @command(dtype_in=float, doc_in="position")
     def set_position(self, value):
         self.write("P={:d}".format(int(value*self.__conversion)))
 
