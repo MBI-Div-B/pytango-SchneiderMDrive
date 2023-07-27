@@ -53,7 +53,7 @@ class SchneiderMDriveAxis(Device):
         access=AttrWriteType.READ_WRITE,
         display_level=DispLevel.EXPERT,
         memorized=True,
-        hw_memorized=True
+        hw_memorized=True,
     )
 
     hold_current = attribute(
@@ -92,7 +92,7 @@ class SchneiderMDriveAxis(Device):
 32 = 1/32 step
 64 = 1/64 step
 128 = 1/128 step
-256 = 1/256 step"""
+256 = 1/256 step""",
     )
 
     hw_limit_minus = attribute(
@@ -131,24 +131,26 @@ class SchneiderMDriveAxis(Device):
 
         self.info_stream("axis part number: {:s}".format(self.write_read("PR PN")))
         self.info_stream("axis serial number: {:s}".format(self.write_read("PR SN")))
-        
+
         # read limit switches
         self.__input_limit_minus = 0
         self.__input_limit_plus = 0
         self.__input_homing_switch = 0
         for i in range(1, 5):
             input_type, input_level, sink_source = self.read_io_setting(i)
-            
+
             if input_type == 1:
                 self.__input_homing_switch = i
             elif input_type == 2:
                 self.__input_limit_plus = i
             elif input_type == 3:
                 self.__input_limit_minus = i
-                
+
         self.info_stream("input limit minus: {:d}".format(self.__input_limit_minus))
         self.info_stream("input limit plus: {:d}".format(self.__input_limit_plus))
-        self.info_stream("input homing switch plus: {:d}".format(self.__input_homing_switch))
+        self.info_stream(
+            "input homing switch plus: {:d}".format(self.__input_homing_switch)
+        )
 
         self.__conversion = 1
         self.__HW_Limit_Plus = False
@@ -160,7 +162,9 @@ class SchneiderMDriveAxis(Device):
     def dev_state(self):
         if self.__input_limit_minus > 0:
             # negative limit switch is present
-            state = bool(int(self.write_read("PR I{:d}".format(self.__input_limit_minus))))
+            state = bool(
+                int(self.write_read("PR I{:d}".format(self.__input_limit_minus)))
+            )
             if self.__conversion < 0:
                 self.__HW_Limit_Plus = state
                 self.debug_stream("HW limit+: {0}".format(self.__HW_Limit_Plus))
@@ -170,15 +174,17 @@ class SchneiderMDriveAxis(Device):
 
         if self.__input_limit_plus > 0:
             # positive limit switch is present
-            state = bool(int(self.write_read("PR I{:d}".format(self.__input_limit_plus))))
+            state = bool(
+                int(self.write_read("PR I{:d}".format(self.__input_limit_plus)))
+            )
             if self.__conversion < 0:
                 self.__HW_Limit_Minus = state
                 self.debug_stream("HW limit-: {0}".format(self.__HW_Limit_Minus))
             else:
                 self.__HW_Limit_Plus = state
-                self.debug_stream("HW limit+: {0}".format(self.__HW_Limit_Plus))                
+                self.debug_stream("HW limit+: {0}".format(self.__HW_Limit_Plus))
 
-        is_moving = bool(int(self.write_read('PR MV')))
+        is_moving = bool(int(self.write_read("PR MV")))
 
         if is_moving:
             self.set_status("Device is MOVING")
@@ -191,25 +197,25 @@ class SchneiderMDriveAxis(Device):
 
     # attribute read/write methods
     def read_position(self):
-        return float(self.write_read("PR P"))/self.__conversion
+        return float(self.write_read("PR P")) / self.__conversion
 
     def write_position(self, value):
-        self.write("MA {:d}".format(int(value*self.__conversion)))
+        self.write("MA {:d}".format(int(value * self.__conversion)))
         self.set_state(DevState.MOVING)
 
     def read_velocity(self):
-        return float(self.write_read("PR VM"))/abs(self.__conversion)
+        return float(self.write_read("PR VM")) / abs(self.__conversion)
 
     def write_velocity(self, value):
-        self.write("VM={:d}".format(int(value*abs(self.__conversion))))
+        self.write("VM={:d}".format(int(value * abs(self.__conversion))))
 
     def read_acceleration(self):
-        return float(self.write_read("PR A"))/abs(self.__conversion)
+        return float(self.write_read("PR A")) / abs(self.__conversion)
 
     def write_acceleration(self, value):
-        self.write("A={:d}".format(int(value*abs(self.__conversion))))
+        self.write("A={:d}".format(int(value * abs(self.__conversion))))
         # set deceleration to same value
-        self.write("D={:d}".format(int(value*abs(self.__conversion))))
+        self.write("D={:d}".format(int(value * abs(self.__conversion))))
 
     def read_conversion(self):
         return self.__conversion
@@ -246,7 +252,9 @@ class SchneiderMDriveAxis(Device):
 
     # internal methods
     def read_io_setting(self, number):
-        input_type, input_level, sink_source = self.write_read("PR S{:d}".format(number)).split(',')
+        input_type, input_level, sink_source = self.write_read(
+            "PR S{:d}".format(number)
+        ).split(",")
         return int(input_type), int(input_level), int(sink_source)
 
     # commands
@@ -256,8 +264,9 @@ class SchneiderMDriveAxis(Device):
         res = self.ctrl.write(cmd)
         if not res:
             self.set_state(DevState.FAULT)
-            self.warn_stream("command not acknowledged from controller "
-                             "-> Fault State")
+            self.warn_stream(
+                "command not acknowledged from controller " "-> Fault State"
+            )
 
     @command(dtype_in=str, dtype_out=str, doc_in="enter a command", doc_out="response")
     def write_read(self, cmd):
@@ -265,15 +274,16 @@ class SchneiderMDriveAxis(Device):
         res = self.ctrl.write_read(cmd)
         if res == "error":
             self.set_state(DevState.FAULT)
-            self.warn_stream("command not acknowledged from controller "
-                             "-> Fault State")
+            self.warn_stream(
+                "command not acknowledged from controller " "-> Fault State"
+            )
             return ""
         else:
             return res
 
     @command(dtype_in=float, doc_in="position")
     def set_position(self, value):
-        self.write("P={:d}".format(int(value*self.__conversion)))
+        self.write("P={:d}".format(int(value * self.__conversion)))
 
     @command(dtype_in=str, doc_in="movement unit", dtype_out=str, doc_out="result")
     def set_movement_unit(self, value):
@@ -301,12 +311,12 @@ class SchneiderMDriveAxis(Device):
 
     @command
     def jog_plus(self):
-        self.write("SL {:d}".format(int(self.read_velocity()*self.__conversion)))
+        self.write("SL {:d}".format(int(self.read_velocity() * self.__conversion)))
         self.set_state(DevState.MOVING)
 
     @command
     def jog_minus(self):
-        self.write("SL {:d}".format(int(-1*self.read_velocity()*self.__conversion)))
+        self.write("SL {:d}".format(int(-1 * self.read_velocity() * self.__conversion)))
         self.set_state(DevState.MOVING)
 
     @command
