@@ -4,11 +4,13 @@
 from tango import Database, DevFailed, AttrWriteType, DevState, DeviceProxy, DispLevel
 from tango.server import device_property
 from tango.server import Device, attribute, command
-import sys
+import time
+from numpy import log2
 
 
 class SchneiderMDriveAxis(Device):
     # device properties
+    
     CtrlDevice = device_property(
         dtype="str",
         default_value="domain/family/member",
@@ -18,6 +20,17 @@ class SchneiderMDriveAxis(Device):
         dtype="str",
         default_value="X",
     )
+
+    TimeOut = device_property(
+        dtype="float",
+        default_value=0.5,
+        doc=(
+            "Timeout in seconds between status requests\n"
+            "to reduce communication traffic."
+        )
+    )
+
+    # device attributes
 
     position = attribute(
         dtype=float,
@@ -79,38 +92,27 @@ class SchneiderMDriveAxis(Device):
     )
 
     micro_steps = attribute(
-        dtype="int",
+        dtype="DevEnum",
+        enum_labels=[
+            "1/1", # 1
+            "1/2", # 2
+            "1/4", # 4
+            "1/8", # 8
+            "1/16", # 16
+            "1/32", # 32
+            "1/64", # 64
+            "1/128", # 128
+            "1/256", # 256
+            ],
         label="micro steps",
         access=AttrWriteType.READ_WRITE,
         display_level=DispLevel.EXPERT,
-        doc="""Step resolution 1 to 256
-1 = Full step
-2 = Half step
-4 = 1/4 step
-8 = 1/8 step
-16 = 1/16 step
-32 = 1/32 step
-64 = 1/64 step
-128 = 1/128 step
-256 = 1/256 step""",
-    )
-
-    hw_limit_minus = attribute(
-        dtype="bool",
-        label="HW limit -",
-        access=AttrWriteType.READ,
-        display_level=DispLevel.OPERATOR,
-    )
-
-    hw_limit_plus = attribute(
-        dtype="bool",
-        label="HW limit +",
-        access=AttrWriteType.READ,
-        display_level=DispLevel.OPERATOR,
+        doc="Step resolution",
     )
 
     def init_device(self):
         super().init_device()
+        self.set_state(DevState.INIT)
         self.info_stream("init_device()")
 
         self.info_stream("module axis: {:s}".format(self.Axis))
@@ -118,26 +120,21 @@ class SchneiderMDriveAxis(Device):
         try:
             self.ctrl = DeviceProxy(self.CtrlDevice)
             self.info_stream("ctrl. device: {:s}".format(self.CtrlDevice))
+            self.set_state(DevState.ON)
         except DevFailed as df:
             self.error_stream("failed to create proxy to {:s}".format(df))
-            sys.exit(255)
-
-        # check if the CrlDevice ON, if not open the serial port
-        if str(self.ctrl.state()) == "OFF":
-            self.ctrl.open()
-            self.info_stream("controller sucessfully opened")
-        else:
-            self.info_stream("controller was already open")
+            self.set_state(DevState.FAULT)
+            return
 
         self.info_stream("axis part number: {:s}".format(self.write_read("PR PN")))
         self.info_stream("axis serial number: {:s}".format(self.write_read("PR SN")))
 
-        # read limit switches
+        # read limit switch inputs
         self.__input_limit_minus = 0
         self.__input_limit_plus = 0
         self.__input_homing_switch = 0
         for i in range(1, 5):
-            input_type, input_level, sink_source = self.read_io_setting(i)
+            input_type, _, _ = self.read_io_setting(i)
 
             if input_type == 1:
                 self.__input_homing_switch = i
@@ -153,47 +150,56 @@ class SchneiderMDriveAxis(Device):
         )
 
         self.__conversion = 1
-        self.__HW_Limit_Plus = False
-        self.__HW_Limit_Minus = False
-
+        self._last_status_query = 0
+        
     def delete_device(self):
         self.set_state(DevState.OFF)
 
-    def dev_state(self):
-        if self.__input_limit_minus > 0:
-            # negative limit switch is present
-            state = bool(
-                int(self.write_read("PR I{:d}".format(self.__input_limit_minus)))
-            )
-            if self.__conversion < 0:
-                self.__HW_Limit_Plus = state
-                self.debug_stream("HW limit+: {0}".format(self.__HW_Limit_Plus))
+    def always_executed_hook(self):
+        # axis state query takes 10 ms (per axis!) on phymotion over TCP
+        # -> limit max. query rate to 5 Hz
+        now = time.time()
+        if now - self._last_status_query > self.TimeOut:
+            status_list = []
+            limit_active = False
+
+            if self.__input_limit_minus > 0:
+                # negative limit switch is present
+                state = bool(
+                    int(self.write_read("PR I{:d}".format(self.__input_limit_minus)))
+                )
+                if state:
+                    limit_active = True
+                    if self.__conversion < 0:
+                        status_list.append('limit+ active')
+                    else:
+                        status_list.append('limit- active')
+
+            if self.__input_limit_plus > 0:
+                # positive limit switch is present
+                state = bool(
+                    int(self.write_read("PR I{:d}".format(self.__input_limit_plus)))
+                )
+                if state:
+                    limit_active=True
+                    if self.__conversion < 0:
+                        status_list.append('limit- active')
+                    else:
+                        status_list.append('limit+ active')
+
+            if bool(int(self.write_read("PR MV"))):
+                status_list.append("Device is MOVING")
+                self.set_state(DevState.MOVING)
+                # do not go into ALARM state if axis is moving
+                # to enable releasing limit switches
             else:
-                self.__HW_Limit_Minus = state
-                self.debug_stream("HW limit-: {0}".format(self.__HW_Limit_Minus))
+                status_list.append("Device in ON")
+                if limit_active:
+                    self.set_state(DevState.ALARM)
+                else:
+                    self.set_state(DevState.ON)
 
-        if self.__input_limit_plus > 0:
-            # positive limit switch is present
-            state = bool(
-                int(self.write_read("PR I{:d}".format(self.__input_limit_plus)))
-            )
-            if self.__conversion < 0:
-                self.__HW_Limit_Minus = state
-                self.debug_stream("HW limit-: {0}".format(self.__HW_Limit_Minus))
-            else:
-                self.__HW_Limit_Plus = state
-                self.debug_stream("HW limit+: {0}".format(self.__HW_Limit_Plus))
-
-        is_moving = bool(int(self.write_read("PR MV")))
-
-        if is_moving:
-            self.set_status("Device is MOVING")
-            self.debug_stream("device is: MOVING")
-            return DevState.MOVING
-        else:
-            self.set_status("Device in ON")
-            self.debug_stream("device is: ON")
-            return DevState.ON
+            self.set_status("\n".join(status_list))
 
     # attribute read/write methods
     def read_position(self):
@@ -221,7 +227,6 @@ class SchneiderMDriveAxis(Device):
         return self.__conversion
 
     def write_conversion(self, value):
-        self.info_stream("Set conversion to {:f}".format(float(value)))
         self.__conversion = float(value)
 
     def read_run_current(self):
@@ -237,18 +242,12 @@ class SchneiderMDriveAxis(Device):
         self.write("HC={:d}".format(value))
 
     def read_micro_steps(self):
-        return int(self.write_read("PR MS"))
+        res = int(self.write_read("PR MS"))
+        self.info_stream(str(res))
+        return int(log2(res))
 
     def write_micro_steps(self, value):
-        if value not in [1, 2, 4, 8, 16, 32, 64, 128, 256]:
-            return "input not in [1, 2, 4, 8, 16, 32, 64, 128, 256]"
-        self.write("MS={:d}".format(value))
-
-    def read_hw_limit_minus(self):
-        return self.__HW_Limit_Minus
-
-    def read_hw_limit_plus(self):
-        return self.__HW_Limit_Plus
+        self.write("MS={:d}".format(2**int(value)))
 
     # internal methods
     def read_io_setting(self, number):
@@ -262,24 +261,11 @@ class SchneiderMDriveAxis(Device):
     def write(self, cmd):
         cmd = str(self.Axis) + cmd
         res = self.ctrl.write(cmd)
-        if not res:
-            self.set_state(DevState.FAULT)
-            self.warn_stream(
-                "command not acknowledged from controller " "-> Fault State"
-            )
 
     @command(dtype_in=str, dtype_out=str, doc_in="enter a command", doc_out="response")
     def write_read(self, cmd):
         cmd = str(self.Axis) + cmd
-        res = self.ctrl.write_read(cmd)
-        if res == "error":
-            self.set_state(DevState.FAULT)
-            self.warn_stream(
-                "command not acknowledged from controller " "-> Fault State"
-            )
-            return ""
-        else:
-            return res
+        return self.ctrl.write_read(cmd)
 
     @command(dtype_in=float, doc_in="position")
     def set_position(self, value):
